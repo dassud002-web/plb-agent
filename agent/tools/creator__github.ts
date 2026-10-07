@@ -187,13 +187,15 @@ async function opAuthStatus(): Promise<unknown> {
   try {
     const out = await gh(["auth", "status", "--json", "hosts"]);
     const data = JSON.parse(out);
-    const host = (data.hosts || [])[0];
+    const hosts = data.hosts || {};
+    const githubHost = hosts["github.com"]?.[0] || {};
+    const host = hosts["github.com"]?.[0];
     return {
       logged_in: !!host,
-      user: host?.user?.login,
-      token_scope: host?.token_scope,
-      hostname: host?.account?.login,
-      message: host ? `Logged in as ${host?.user?.login}` : "Not logged in",
+      user: githubHost.user?.login || githubHost.login,
+      token_scope: githubHost.token_scope || githubHost.scopes,
+      hostname: "github.com",
+      message: githubHost.login ? `Logged in as ${githubHost.login}` : "Not logged in",
     };
   } catch {
     return {
@@ -217,12 +219,12 @@ async function opListRepos(owner?: string, limit = 10): Promise<unknown> {
 }
 
 async function opInspectRepo(owner: string, repo: string): Promise<unknown> {
-  const out = await gh(["repo", "view", `${owner}/${repo}`, "--json", "name,defaultBranch,description,visibility,openIssuesCount,stargazerCount,forksCount,pushedAt,createdAt,language,topics,license"]);
+  const out = await gh(["repo", "view", `${owner}/${repo}`, "--json", "name,defaultBranchRef,description,visibility,stargazerCount,forkCount,pushedAt,createdAt,languages,repositoryTopics,issues,pullRequests"]);
   return JSON.parse(out);
 }
 
 async function opListBranches(owner: string, repo: string): Promise<unknown> {
-  const out = await gh(["repo", "branch", "list", "--json=name,sha,isProtected", "-R", `${owner}/${repo}`]);
+  const out = await gh(["api", `repos/${owner}/${repo}/branches`, "--json", "name,sha,protected,protection_url"]);
   const branches = JSON.parse(out || "[]");
   return { branches, count: branches.length };
 }
@@ -233,7 +235,7 @@ async function opListFiles(
   branch?: string,
   path?: string
 ): Promise<unknown> {
-  const args = ["repo", "files", "list", "-R", `${owner}/${repo}`, "--json", "name,path,sha,type"];
+  const args = ["api", `repos/${owner}/${repo}/contents/${path || ""}`, "--jq", ".[] | {name, path, sha, type, size}"];
   if (branch) args.push("--branch", branch);
   if (path) args.push("--path", path);
   const out = await gh(args);
@@ -252,12 +254,20 @@ async function opViewFile(owner: string, repo: string, branch: string, path: str
   }
 }
 
-async function opCreateBranch(owner: string, repo: string, branch: string): Promise<unknown> {
-  await gh(["repo", "branch", "create", "-R", `${owner}/${repo}`, branch, "--clone"]);
+async function opCreateBranch(owner: string, repo: string, branch: string, baseBranch?: string): Promise<unknown> {
+  const base = baseBranch || "main";
+  // Get the SHA of the base branch reference
+  const shaRaw = await gh(["api", `repos/${owner}/${repo}/git/refs/heads/${base}`, "--jq", ".object.sha"]);
+  const sha = shaRaw.trim();
+  if (!sha) throw new Error(`Could not resolve SHA for base branch '${base}'`);
+  // Create the new branch reference
+  await gh(["api", "-X", "POST", `repos/${owner}/${repo}/git/refs`,
+    "-f", `ref=refs/heads/${branch}`, "-f", `sha=${sha}`]);
   return {
     message: `Branch '${branch}' created in ${owner}/${repo}`,
     branch,
     repo: `${owner}/${repo}`,
+    base,
   };
 }
 
