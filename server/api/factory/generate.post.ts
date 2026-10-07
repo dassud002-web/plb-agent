@@ -141,6 +141,10 @@ export default defineEventHandler(async (event) => {
   const origin = appOrigin();
   const sessionCookie = getHeader(event, "cookie") ?? "";
 
+  // 60-second timeout so we never hang indefinitely
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 60_000);
+
   void (async () => {
     try {
       // Start a session with Eve
@@ -153,7 +157,10 @@ export default defineEventHandler(async (event) => {
         body: JSON.stringify({
           message: `${skillInfo.systemPrompt}\n\n---\nContent to analyze:\n${body.input}`,
         }),
+        signal: controller.signal,
       });
+
+      clearTimeout(timeout);
 
       if (!sessionRes.ok) {
         await updateJobStatus(job.id, {
@@ -222,7 +229,7 @@ export default defineEventHandler(async (event) => {
       }
 
       // Save the output and mark job done
-      const content = assistantMessage || "(no output)";
+      const outputContent = assistantMessage || "(no output)";
       await fetch(`${origin}/api/internal/factory-output`, {
         method: "POST",
         headers: {
@@ -233,12 +240,13 @@ export default defineEventHandler(async (event) => {
           jobId: job.id,
           projectId: body.projectId,
           outputType: skillInfo.outputType,
-          content,
+          content: outputContent,
           metadata: { workflow: body.workflow, inputMode: body.inputMode },
           status: "done",
         }),
       });
     } catch (err) {
+      clearTimeout(timeout);
       // Best-effort: update job as failed without throwing
       try {
         await updateJobStatus(job.id, {
