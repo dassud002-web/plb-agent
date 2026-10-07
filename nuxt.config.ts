@@ -48,7 +48,7 @@ export default defineNuxtConfig({
   app: {
     head: {
       htmlAttrs: { lang: "en" },
-      title: "V",
+      title: "PLB Creator",
       titleTemplate: "%s",
       charset: "utf-8",
       viewport: "width=device-width, initial-scale=1",

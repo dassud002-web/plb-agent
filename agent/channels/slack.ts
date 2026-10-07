@@ -141,7 +141,7 @@ async function buildSlackTurn(ctx: SlackContext, message: SlackMessage) {
   });
   if (prior.length > 0) {
     const transcript = prior
-      .map((m) => `${m.isMe ? "V" : (m.user ?? "user")}: ${m.markdown}`)
+      .map((m) => `${m.isMe ? "PLB Creator" : (m.user ?? "user")}: ${m.markdown}`)
       .join("\n");
     context.push(`Recent thread messages since your last reply:\n\n${transcript}`);
   }
