@@ -2,15 +2,18 @@ import { db } from "@nuxthub/db";
 
 /**
  * One-time migration runner for factory tables.
- * Protected by INTERNAL_API_SECRET. Idempotent — safe to call multiple times.
+ * Idempotent — safe to call multiple times.
  * Creates: factory_projects, factory_outputs, factory_jobs
  */
 export default defineEventHandler(async (event) => {
-  // Authenticate using INTERNAL_API_SECRET
-  const authHeader = getHeader(event, "x-internal-api-secret");
-  const expectedSecret = useRuntimeConfig(event).internalApiSecret;
-  if (!authHeader || authHeader !== expectedSecret) {
-    throw createError({ statusCode: 401, statusMessage: "Unauthorized" });
+  // Authenticate using INTERNAL_API_SECRET (same mechanism as server/utils/session.ts)
+  const secret = process.env.INTERNAL_API_SECRET?.trim();
+  if (!secret) {
+    throw createError({ statusCode: 500, statusMessage: "INTERNAL_API_SECRET is not configured" });
+  }
+  const authHeader = getHeader(event, "authorization") ?? "";
+  if (authHeader !== `Bearer ${secret}`) {
+    throw createError({ statusCode: 401, statusMessage: "Invalid internal API secret" });
   }
 
   const sql = db.$client;
@@ -58,7 +61,7 @@ export default defineEventHandler(async (event) => {
     `CREATE INDEX IF NOT EXISTS "factory_jobs_project_idx" ON "factory_jobs" ("project_id")`,
     `CREATE INDEX IF NOT EXISTS "factory_jobs_status_idx" ON "factory_jobs" ("status")`,
 
-    // Foreign keys (conditional — wrap in DO $$ block)
+    // Foreign keys (conditional)
     `DO $$
 BEGIN
   IF NOT EXISTS (
