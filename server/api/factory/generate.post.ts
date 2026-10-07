@@ -126,6 +126,7 @@ export default defineEventHandler(async (event) => {
   // Create a pending job
   const job = await createJobForProject(body.projectId, {
     jobType: body.workflow,
+    status: "pending",
     inputParams: {
       workflow: body.workflow,
       input: body.input,
