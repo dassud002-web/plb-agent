@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { createJobForProject, getProjectForUser } from "~~/server/utils/factory";
+import { createJobForProject, getProjectForUser, updateJobStatus } from "~~/server/utils/factory";
 import { requireSessionUserId } from "~~/server/utils/session";
 import { appOrigin, internalHeaders } from "~~/agent/lib/internal-api";
 
@@ -179,9 +179,8 @@ export default defineEventHandler(async (event) => {
       });
     })
     .catch(async (err) => {
-      // Best-effort: update job as failed without calling internal API again
+      // Best-effort: update job as failed without throwing
       try {
-        const { updateJobStatus } = await import("~~/server/utils/factory");
         await updateJobStatus(job.id, {
           status: "failed",
           result: { errorMessage: String(err) },
