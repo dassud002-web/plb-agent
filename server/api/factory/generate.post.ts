@@ -147,6 +147,8 @@ export default defineEventHandler(async (event) => {
 
   void (async () => {
     try {
+      console.log(`[FACTORY] Creating Eve session for job ${job.id}...`);
+
       // Step 1: Create a session with Eve — POST returns {sessionId} immediately
       const sessionRes = await fetch(`${origin}/eve/v1/session`, {
         method: "POST",
@@ -159,6 +161,8 @@ export default defineEventHandler(async (event) => {
         }),
         signal: controller.signal,
       });
+
+      console.log(`[FACTORY] Eve session POST status: ${sessionRes.status}`);
 
       if (!sessionRes.ok) {
         clearTimeout(timeout);
@@ -173,6 +177,7 @@ export default defineEventHandler(async (event) => {
       try {
         const sessionData = await sessionRes.json() as { sessionId: string };
         sessionId = sessionData.sessionId;
+        console.log(`[FACTORY] Eve session ID: ${sessionId}`);
       } catch {
         clearTimeout(timeout);
         await updateJobStatus(job.id, {
@@ -183,10 +188,13 @@ export default defineEventHandler(async (event) => {
       }
 
       // Step 2: Stream events from the session's dedicated stream endpoint
+      console.log(`[FACTORY] Fetching Eve stream for session ${sessionId}...`);
       const streamRes = await fetch(`${origin}/eve/v1/session/${sessionId}/stream`, {
         headers: { cookie: cookieHeader },
         signal: controller.signal,
       });
+
+      console.log(`[FACTORY] Eve stream status: ${streamRes.status}`);
 
       clearTimeout(timeout);
 
@@ -248,6 +256,8 @@ export default defineEventHandler(async (event) => {
         }
       }
 
+      console.log(`[FACTORY] Stream complete. turnFailed=${turnFailed}, messageLen=${assistantMessage.length}`);
+
       if (turnFailed) {
         await updateJobStatus(job.id, {
           status: "failed",
@@ -261,7 +271,7 @@ export default defineEventHandler(async (event) => {
       await fetch(`${origin}/api/internal/factory-output`, {
         method: "POST",
         headers: {
-          authorization: `Bearer ${process.env.INTERNAL_API_SECRET}`,
+          "x-internal-api-secret": process.env.INTERNAL_API_SECRET ?? "",
           "content-type": "application/json",
         },
         body: JSON.stringify({
@@ -273,8 +283,10 @@ export default defineEventHandler(async (event) => {
           status: "done",
         }),
       });
+      await updateJobStatus(job.id, { status: "done" });
     } catch (err) {
       clearTimeout(timeout);
+      console.error(`[FACTORY] Job ${job.id} error:`, err);
       // Best-effort: update job as failed without throwing
       try {
         await updateJobStatus(job.id, {
