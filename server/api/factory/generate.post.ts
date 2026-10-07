@@ -183,7 +183,9 @@ export default defineEventHandler(async (event) => {
       }
 
       // Step 2: Stream events from the session's dedicated stream endpoint
+      // Forward the same cookie for authentication
       const streamRes = await fetch(`${origin}/eve/v1/session/${sessionId}/stream`, {
+        headers: { cookie: sessionCookie },
         signal: controller.signal,
       });
 
