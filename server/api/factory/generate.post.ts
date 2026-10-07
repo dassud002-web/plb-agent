@@ -147,6 +147,8 @@ export default defineEventHandler(async (event) => {
 
   void (async () => {
     try {
+      console.log(`[FACTORY] Starting Eve call for job ${job.id}, cookie has better-auth: ${cookieHeader.includes("better-auth")}`);
+
       // Step 1: Create a session with Eve — POST returns {sessionId} immediately
       const sessionRes = await fetch(`${origin}/eve/v1/session`, {
         method: "POST",
@@ -162,6 +164,7 @@ export default defineEventHandler(async (event) => {
 
       if (!sessionRes.ok) {
         clearTimeout(timeout);
+        console.log(`[FACTORY] Eve session POST failed: ${sessionRes.status} ${sessionRes.statusText}`);
         await updateJobStatus(job.id, {
           status: "failed",
           result: { errorMessage: `Eve session returned ${sessionRes.status}: ${sessionRes.statusText}` },
@@ -191,6 +194,7 @@ export default defineEventHandler(async (event) => {
       clearTimeout(timeout);
 
       if (!streamRes.ok) {
+        console.log(`[FACTORY] Eve stream GET failed: ${streamRes.status} ${streamRes.statusText}`);
         await updateJobStatus(job.id, {
           status: "failed",
           result: { errorMessage: `Eve stream returned ${streamRes.status}: ${streamRes.statusText}` },
@@ -240,6 +244,8 @@ export default defineEventHandler(async (event) => {
             if (parsed.type === "session.failed") {
               turnFailed = true;
               failureMessage = parsed.data?.message ?? "Session failed";
+              console.log(`[FACTORY] Session failed: ${failureMessage.substring(0, 200)}`);
+              // Continue reading to consume the stream, then exit below
             }
           } catch {
             // ignore parse errors for non-JSON lines
@@ -274,6 +280,7 @@ export default defineEventHandler(async (event) => {
       });
     } catch (err) {
       clearTimeout(timeout);
+      console.log(`[FACTORY] Unexpected error: ${String(err)}`);
       // Best-effort: update job as failed without throwing
       try {
         await updateJobStatus(job.id, {
