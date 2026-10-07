@@ -123,6 +123,23 @@ export function useFactory() {
     }
   }
 
+  /**
+   * Start a generation job via the Eve agent.
+   * Returns immediately with the job; poll with pollJob() to get the result.
+   */
+  async function generate(input: {
+    projectId: string;
+    workflow: Workflow;
+    input: string;
+    inputMode: "idea" | "url" | "text";
+  }) {
+    const data = await requestFetch<{ job: FactoryJob }>(
+      "/api/factory/generate",
+      { method: "POST", body: input }
+    );
+    return normalizeJob(data.job);
+  }
+
   // ── Job polling ─────────────────────────────────────────────────────────────
 
   async function pollJob(jobId: string, intervalMs = 1500): Promise<FactoryJob> {
@@ -197,7 +214,6 @@ export function useFactory() {
     currentProject,
     outputs,
     isLoadingProjects,
-    isLoadingOutputs,
     isSaving,
     isGenerating,
     activeJob,
@@ -205,6 +221,7 @@ export function useFactory() {
     createProject,
     fetchOutputs,
     saveOutput,
+    generate,
     pollJob,
   };
 }

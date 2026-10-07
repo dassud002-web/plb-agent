@@ -18,6 +18,8 @@ const {
   createProject,
   fetchOutputs,
   saveOutput,
+  generate,
+  pollJob,
 } = useFactory();
 
 // ── State ───────────────────────────────────────────────────────────────────
@@ -76,24 +78,51 @@ async function handleGenerate() {
 
   outputContent.value = "";
   isGenerating.value = true;
+  activeJob.value = null;
 
   try {
-    // In Phase 5 the generation is driven by the agent via the chat.
-    // Here we save the raw input as an analysis output for now.
-    const output = await saveOutput({
+    const job = await generate({
       projectId: currentProjectId.value,
-      outputType: "analysis",
-      content: `[${selectedWorkflow.value}] ${inputValue.value.trim()}`,
-      metadata: { workflow: selectedWorkflow.value, inputMode: inputMode.value },
+      workflow: selectedWorkflow.value,
+      input: inputValue.value.trim(),
+      inputMode: inputMode.value,
     });
-    outputContent.value = output.content;
-    toast.add({ title: "Output saved", color: "success" });
+
+    activeJob.value = job;
+
+    // Poll until done or failed
+    const finalJob = await pollJob(job.id);
+    activeJob.value = finalJob;
+
+    if (finalJob.status === "done" && generatedContent.value) {
+      outputContent.value = generatedContent.value;
+      toast.add({ title: "Generation complete", color: "success" });
+      // Refresh outputs list
+      await fetchOutputs(currentProjectId.value);
+    } else if (finalJob.status === "failed") {
+      toast.add({
+        title: "Generation failed",
+        description: errorMessage.value ?? "Unknown error",
+        color: "error",
+      });
+    }
   } catch (err) {
-    toast.add({ title: "Failed to save output", description: String(err), color: "error" });
+    toast.add({ title: "Generation failed", description: String(err), color: "error" });
   } finally {
     isGenerating.value = false;
   }
 }
+
+/** Computed error message from result JSON (no errorMessage column in schema) */
+const errorMessage = computed(() => (activeJob.value?.result as Record<string, string> | undefined)?.errorMessage);
+
+// spinner only animates while pending/running
+const isJobActive = computed(
+  () => activeJob.value?.status === "pending" || activeJob.value?.status === "running"
+);
+
+// result.content is the generated text (populated when done)
+const generatedContent = computed(() => (activeJob.value?.result as Record<string, string> | undefined)?.content);
 
 async function handleSaveOutput() {
   if (!currentProjectId.value || !outputContent.value.trim()) return;
@@ -225,9 +254,14 @@ async function handleSaveOutput() {
           <div v-if="activeJob" class="flex items-center gap-2 text-xs text-muted">
             <UIcon
               name="i-lucide-loader-2"
-              class="animate-spin"
+              :class="isJobActive ? 'animate-spin' : ''"
             />
-            <span>Job: {{ activeJob.status }} — {{ activeJob.jobType }}</span>
+            <span>
+              Job: {{ activeJob.status }}
+              <span v-if="activeJob.status === 'failed' && errorMessage" class="text-red-400">
+                — {{ errorMessage }}
+              </span>
+            </span>
           </div>
         </div>
 
