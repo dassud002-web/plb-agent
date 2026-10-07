@@ -1,5 +1,4 @@
 import { db } from "@nuxthub/db";
-import { sql } from "drizzle-orm";
 
 /**
  * One-time migration runner for factory tables.
@@ -14,9 +13,11 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 401, statusMessage: "Unauthorized" });
   }
 
+  const sql = db.$client;
+
   const migrations = [
     // factory_projects
-    sql.raw`CREATE TABLE IF NOT EXISTS "factory_projects" (
+    `CREATE TABLE IF NOT EXISTS "factory_projects" (
       "id" text PRIMARY KEY NOT NULL,
       "user_id" text NOT NULL,
       "name" varchar(255) NOT NULL,
@@ -27,10 +28,11 @@ export default defineEventHandler(async (event) => {
       "created_at" timestamp NOT NULL DEFAULT now(),
       "updated_at" timestamp NOT NULL DEFAULT now()
     )`,
-    sql.raw`CREATE INDEX IF NOT EXISTS "factory_projects_user_updated_idx" ON "factory_projects" ("user_id", "updated_at")`,
+
+    `CREATE INDEX IF NOT EXISTS "factory_projects_user_updated_idx" ON "factory_projects" ("user_id", "updated_at")`,
 
     // factory_outputs
-    sql.raw`CREATE TABLE IF NOT EXISTS "factory_outputs" (
+    `CREATE TABLE IF NOT EXISTS "factory_outputs" (
       "id" text PRIMARY KEY NOT NULL,
       "project_id" text NOT NULL,
       "output_type" varchar(32) NOT NULL,
@@ -38,10 +40,11 @@ export default defineEventHandler(async (event) => {
       "metadata" text NOT NULL DEFAULT '{}',
       "created_at" timestamp NOT NULL DEFAULT now()
     )`,
-    sql.raw`CREATE INDEX IF NOT EXISTS "factory_outputs_project_idx" ON "factory_outputs" ("project_id")`,
+
+    `CREATE INDEX IF NOT EXISTS "factory_outputs_project_idx" ON "factory_outputs" ("project_id")`,
 
     // factory_jobs
-    sql.raw`CREATE TABLE IF NOT EXISTS "factory_jobs" (
+    `CREATE TABLE IF NOT EXISTS "factory_jobs" (
       "id" text PRIMARY KEY NOT NULL,
       "project_id" text NOT NULL,
       "job_type" varchar(64) NOT NULL,
@@ -51,11 +54,12 @@ export default defineEventHandler(async (event) => {
       "created_at" timestamp NOT NULL DEFAULT now(),
       "updated_at" timestamp NOT NULL DEFAULT now()
     )`,
-    sql.raw`CREATE INDEX IF NOT EXISTS "factory_jobs_project_idx" ON "factory_jobs" ("project_id")`,
-    sql.raw`CREATE INDEX IF NOT EXISTS "factory_jobs_status_idx" ON "factory_jobs" ("status")`,
 
-    // Foreign keys (conditional)
-    sql.raw`DO $$
+    `CREATE INDEX IF NOT EXISTS "factory_jobs_project_idx" ON "factory_jobs" ("project_id")`,
+    `CREATE INDEX IF NOT EXISTS "factory_jobs_status_idx" ON "factory_jobs" ("status")`,
+
+    // Foreign keys (conditional — wrap in DO $$ block)
+    `DO $$
 BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.table_constraints
@@ -65,7 +69,8 @@ BEGIN
       FOREIGN KEY ("project_id") REFERENCES "factory_projects"("id") ON DELETE cascade;
   END IF;
 END$$`,
-    sql.raw`DO $$
+
+    `DO $$
 BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.table_constraints
@@ -75,7 +80,8 @@ BEGIN
       FOREIGN KEY ("project_id") REFERENCES "factory_projects"("id") ON DELETE cascade;
   END IF;
 END$$`,
-    sql.raw`DO $$
+
+    `DO $$
 BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.table_constraints
@@ -90,14 +96,14 @@ END$$`,
   const results: string[] = [];
   for (const migration of migrations) {
     try {
-      await db.run(migration);
-      results.push("OK: " + String(migration).slice(0, 50));
+      await sql.unsafe(migration);
+      results.push("OK: " + migration.slice(0, 50));
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
       if (msg.includes("already exists") || msg.includes("duplicate") || msg.includes("cannot be cast")) {
-        results.push("SKIP: " + String(migration).slice(0, 50));
+        results.push("SKIP: " + migration.slice(0, 50));
       } else {
-        results.push("ERROR: " + String(migration).slice(0, 50) + " -- " + msg);
+        results.push("ERROR: " + migration.slice(0, 50) + " -- " + msg);
       }
     }
   }
@@ -105,10 +111,10 @@ END$$`,
   // Verify tables exist
   let tables_found: string[] = [];
   try {
-    const rows = await db.all(sql.raw`
+    const rows = await sql.unsafe(`
       SELECT tablename FROM pg_tables WHERE schemaname = 'public' AND tablename IN ('factory_projects', 'factory_outputs', 'factory_jobs')
-    `) as { tablename: string }[];
-    tables_found = rows.map((r) => r.tablename);
+    `);
+    tables_found = (rows as unknown[]).map((r: any) => r.tablename).filter(Boolean);
   } catch {
     // ignore
   }
