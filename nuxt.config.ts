@@ -82,6 +82,7 @@ export default defineNuxtConfig({
     db: {
       dialect: "postgresql",
       driver: "postgres-js",
+      applyMigrationsDuringBuild: false,
     },
   },
   runtimeConfig: {
