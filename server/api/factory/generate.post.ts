@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { createJobForProject, getProjectForUser, updateJobStatus } from "~~/server/utils/factory";
 import { requireSessionUserId } from "~~/server/utils/session";
-import { appOrigin, internalHeaders } from "~~/agent/lib/internal-api";
+import { appOrigin } from "~~/agent/lib/internal-api";
 
 /**
  * Workflow → skill file mapping.
@@ -134,38 +134,99 @@ export default defineEventHandler(async (event) => {
     },
   });
 
-  // Fire-and-forget: invoke Eve agent with the skill prompt
-  // Eve will call /api/internal/factory-output when done
+  // Fire-and-forget: invoke Eve agent with the skill prompt.
+  // Eve will call /api/internal/factory-output when done.
+  // Forward the Better Auth session cookie so Eve can authenticate the user
+  // (same mechanism as the browser-based chat UI uses via useEveAgent).
   const origin = appOrigin();
-  const headers = internalHeaders();
+  const sessionCookie = getHeader(event, "cookie") ?? "";
 
-  void fetch(`${origin}/eve/v1/sessions`, {
-    method: "POST",
-    headers: {
-      ...headers,
-      "content-type": "application/json",
-    },
-    body: JSON.stringify({
-      message: `${skillInfo.systemPrompt}\n\n---\nContent to analyze:\n${body.input}`,
-    }),
-  })
-    .then(async (res) => {
-      if (!res.ok) {
+  void (async () => {
+    try {
+      // Start a session with Eve
+      const sessionRes = await fetch(`${origin}/eve/v1/session`, {
+        method: "POST",
+        headers: {
+          cookie: sessionCookie,
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          message: `${skillInfo.systemPrompt}\n\n---\nContent to analyze:\n${body.input}`,
+        }),
+      });
+
+      if (!sessionRes.ok) {
         await updateJobStatus(job.id, {
           status: "failed",
-          result: { errorMessage: `Eve agent returned ${res.status}: ${res.statusText}` },
+          result: { errorMessage: `Eve agent returned ${sessionRes.status}: ${sessionRes.statusText}` },
         });
         return;
       }
-      // Read the stream to consume it (required for HTTP)
-      const text = await res.text();
-      // Try to extract useful content from Eve's response
-      // The agent returns structured text; parse the first substantial block
-      const content = text.trim() || "(generation complete)";
+
+      // Read the NDJSON event stream from Eve
+      // Events we care about: message.received, turn.failed, session.failed
+      const stream = sessionRes.body;
+      if (!stream) {
+        await updateJobStatus(job.id, {
+          status: "failed",
+          result: { errorMessage: "Eve returned an empty response stream" },
+        });
+        return;
+      }
+
+      let assistantMessage = "";
+      let turnFailed = false;
+      let failureMessage = "";
+
+      const reader = stream.getReader();
+      const decoder = new TextDecoder();
+
+      for (;;) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        const lines = decoder.decode(value, { stream: true }).split("\n");
+        for (const line of lines) {
+          if (!line.trim()) continue;
+          try {
+            const parsed = JSON.parse(line);
+            // Accumulate assistant text from message.received events
+            if (parsed.type === "message.received") {
+              const textParts = (parsed.data?.parts ?? [])
+                .filter((p: any) => p.type === "text")
+                .map((p: any) => p.text)
+                .join("\n")
+                .trim();
+              if (textParts) assistantMessage = textParts;
+            }
+            if (parsed.type === "turn.failed") {
+              turnFailed = true;
+              failureMessage = parsed.data?.message ?? "Turn failed";
+            }
+            if (parsed.type === "session.failed") {
+              turnFailed = true;
+              failureMessage = parsed.data?.message ?? "Session failed";
+            }
+          } catch {
+            // ignore parse errors for non-JSON lines
+          }
+        }
+      }
+
+      if (turnFailed) {
+        await updateJobStatus(job.id, {
+          status: "failed",
+          result: { errorMessage: failureMessage },
+        });
+        return;
+      }
+
+      // Save the output and mark job done
+      const content = assistantMessage || "(no output)";
       await fetch(`${origin}/api/internal/factory-output`, {
         method: "POST",
         headers: {
-          ...headers,
+          authorization: `Bearer ${process.env.INTERNAL_API_SECRET}`,
           "content-type": "application/json",
         },
         body: JSON.stringify({
@@ -177,8 +238,7 @@ export default defineEventHandler(async (event) => {
           status: "done",
         }),
       });
-    })
-    .catch(async (err) => {
+    } catch (err) {
       // Best-effort: update job as failed without throwing
       try {
         await updateJobStatus(job.id, {
@@ -188,7 +248,8 @@ export default defineEventHandler(async (event) => {
       } catch {
         // ignore
       }
-    });
+    }
+  })();
 
   return { job };
 });
