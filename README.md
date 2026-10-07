@@ -1,38 +1,38 @@
 <img src="./public/banner.png" width="100%" alt="Personal Agent Template" />
 
-# Personal Agent Template
+# PLB Creator Factory
 
-[![CI](https://img.shields.io/github/actions/workflow/status/vercel-labs/personal-agent-template/ci.yml?branch=main&color=black)](https://github.com/vercel-labs/personal-agent-template/actions/workflows/ci.yml)
-[![License: MIT](https://img.shields.io/github/license/vercel-labs/personal-agent-template?color=black)](https://github.com/vercel-labs/personal-agent-template/blob/main/LICENSE)
+[![CI](https://img.shields.io/github/actions/workflow/status/dassud002-web/plb-agent/ci.yml?branch=main&color=black)](https://github.com/dassud002-web/plb-agent/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/github/license/dassud002-web/plb-agent?color=black)](https://github.com/dassud002-web/plb-agent/blob/main/LICENSE)
 [![Vercel](https://img.shields.io/badge/Vercel-black?logo=vercel&logoColor=white)](https://vercel.com)
 
-**Template.** Fork it, customize it, and deploy your own personal agent.
+**PLB Creator Factory.** AI agent for content research, prompt generation, SEO, captions, hooks, and GitHub publishing.
 
 [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fvercel-labs%2Fpersonal-agent-template&env=BETTER_AUTH_SECRET,BETTER_AUTH_URL,INTERNAL_API_SECRET&envDescription=BETTER_AUTH_SECRET%3A%20run%20openssl%20rand%20-base64%2032%20%7C%20BETTER_AUTH_URL%3A%20your%20production%20URL%20%7C%20INTERNAL_API_SECRET%3A%20shared%20secret%20for%20web%20%2B%20eve&envLink=https%3A%2F%2Fgithub.com%2Fvercel-labs%2Fpersonal-agent-template%2Fblob%2Fmain%2Fdocs%2FENVIRONMENT.md&stores=%5B%7B%22type%22%3A%22integration%22%2C%22integrationSlug%22%3A%22neon%22%2C%22productSlug%22%3A%22database%22%2C%22protocol%22%3A%22storage%22%7D%5D&project-name=personal-agent&repository-name=personal-agent)
 
-Open source personal agent template. Web chat, Slack, GitHub, Linear, and persistent memory — one codebase, durable sessions.
+AI-powered creator factory. Web chat, creator workflow, GitHub CLI automation, and persistent memory — built on Eve and Nuxt.
 
 ## Features
 
 ### Web Chat — Threads That Persist
 
-Chat with your agent in the browser. Threads resume across sessions and tool calls render in real time. Eve holds the transcript, so the app stores a session id and nothing else.
+Chat with PLB Creator in the browser. Threads resume across sessions and tool calls render in real time. Eve holds the transcript, so the app stores a session id and nothing else.
 
-### Slack — Same Agent, Different Surface
+### Slack — Creator Triggers
 
 DMs and @mentions on Slack. Link your Slack account to your web profile so memory and context follow you across channels.
 
-### GitHub — Repos, PRs, and CI
+### GitHub — CLI Automation
 
-Connect GitHub via Vercel Connect. Ask about repositories, pull requests, issues, and workflows — the agent mounts the [@github-tools/eve-extension](https://github-tools.com/frameworks/eve) tools with durable approval on writes.
+Use the native GitHub CLI (`gh`) for repository inspection, branch creation, commits, and PRs — with Vercel Connect GitHub also available.
 
-### Linear — Issues On Demand
+### Linear — Project Issues
 
-Connect Linear via Vercel Connect MCP. Ask about issues, projects, and cycles — the agent queries Linear tools, never guesses from memory.
+Connect Linear via Vercel Connect MCP. Ask about issues, projects, and cycles for your creator projects.
 
 ### Persistent Memory — Eve's Memory Slot
 
-A bounded, model-maintained list of durable facts, scoped per user by Eve's [`fileMemory()`](https://eve.dev/docs/memory) provider. Recalled before every turn and after compaction; the agent saves and removes entries as the conversation warrants.
+A bounded, model-maintained list of durable facts about your creator preferences and projects, scoped per user by Eve's [`fileMemory()`](https://eve.dev/docs/memory) provider. Recalled before every turn and after compaction.
 
 ### Daily Summary — On Demand
 
@@ -70,8 +70,8 @@ On Vercel the deployment splits into two services: `web` (Nuxt) and `eve` (agent
 **Requirements:** Node.js 24+, pnpm
 
 ```bash
-git clone https://github.com/vercel-labs/personal-agent-template.git
-cd personal-agent-template
+git clone https://github.com/dassud002-web/plb-agent.git
+cd plb-agent
 
 pnpm install
 cp .env.example .env

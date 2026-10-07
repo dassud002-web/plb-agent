@@ -17,3 +17,26 @@ export async function requireSessionUserId(event: H3Event): Promise<string> {
 
   return session.user.id;
 }
+
+/**
+ * Authenticates internal service-to-service calls.
+ * Requires Authorization: Bearer <INTERNAL_API_SECRET>
+ */
+export async function requireInternalApiSecret(event: H3Event): Promise<void> {
+  const secret = process.env.INTERNAL_API_SECRET?.trim();
+  if (!secret) {
+    throw createError({
+      statusCode: 500,
+      statusMessage: "INTERNAL_API_SECRET is not configured",
+    });
+  }
+
+  const authHeader = getHeader(event, "authorization") ?? "";
+  const expected = `Bearer ${secret}`;
+  if (authHeader !== expected) {
+    throw createError({
+      statusCode: 401,
+      statusMessage: "Invalid internal API secret",
+    });
+  }
+}

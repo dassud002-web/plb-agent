@@ -1,7 +1,7 @@
 {
-  "name": "personal-agent-template",
+  "name": "plb-creator-factory",
   "version": "0.0.0",
-  "description": "A durable personal AI assistant template built with Eve, Nuxt 4, and Better Auth",
+  "description": "PLB Creator Factory — AI agent for content research, prompt generation, SEO, captions, hooks, and GitHub publishing.",
   "license": "MIT",
   "author": "Hugo Richard",
   "repository": {

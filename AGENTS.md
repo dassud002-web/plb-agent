@@ -1,6 +1,6 @@
-# Personal Agent Template
+# PLB Creator Factory
 
-Durable personal AI assistant built with Eve and Nuxt.
+AI-powered creator agent built with Eve and Nuxt.
 
 ## Quick Reference
 
@@ -19,7 +19,7 @@ Durable personal AI assistant built with Eve and Nuxt.
 ## Structure
 
 ```
-personal-agent-template/
+plb-creator-factory/
 ├── agent/          # Eve agent (channels, tools, skills, connections)
 ├── app/            # Nuxt UI (pages, components, composables)
 ├── server/         # Nitro API, Drizzle schema, server utils
@@ -48,6 +48,14 @@ The Eve agent calls Nuxt over HTTP:
 agent/lib/*-internal.ts  →  /api/internal/*  →  server/utils/*
 ```
 
+## Creator Workflow
+
+PLB Creator Factory adds GitHub CLI tools (`creator__github__*`) for repository inspection, branch creation, commits, and PRs. The workflow is:
+1. Research — web search and content analysis
+2. Prompt generation — optimized prompts from content ideas
+3. Content generation — SEO, captions, hooks
+4. GitHub publish — commit and PR via `gh` CLI
+
 Authenticated with `Authorization: Bearer <INTERNAL_API_SECRET>`. See [`server/utils/internal-api.ts`](server/utils/internal-api.ts).
 
 ## Memory
@@ -63,8 +71,8 @@ agent maintains them with `profile__save_memory` and `profile__remove_memory`.
 
 ## Customization Checklist
 
-- [`shared/agent.ts`](shared/agent.ts) — branding
-- [`agent/instructions.ts`](agent/instructions.ts) — persona
+- [`shared/agent.ts`](shared/agent.ts) — agent name and branding
+- [`agent/instructions.ts`](agent/instructions.ts) — persona and creator workflow
 - [`agent/channels/slack.ts`](agent/channels/slack.ts) — Slack Connect slug
 - [`agent/agent.ts`](agent/agent.ts) — AI model
 
