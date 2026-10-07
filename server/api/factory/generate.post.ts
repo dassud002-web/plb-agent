@@ -171,7 +171,7 @@ export default defineEventHandler(async (event) => {
       }
 
       // Read the NDJSON event stream from Eve
-      // Events we care about: message.received, turn.failed, session.failed
+      // Events we care about: message.completed, message.appended, turn.failed, session.failed
       const stream = sessionRes.body;
       if (!stream) {
         await updateJobStatus(job.id, {
@@ -197,14 +197,16 @@ export default defineEventHandler(async (event) => {
           if (!line.trim()) continue;
           try {
             const parsed = JSON.parse(line);
-            // Accumulate assistant text from message.received events
-            if (parsed.type === "message.received") {
-              const textParts = (parsed.data?.parts ?? [])
-                .filter((p: any) => p.type === "text")
-                .map((p: any) => p.text)
-                .join("\n")
-                .trim();
-              if (textParts) assistantMessage = textParts;
+            // Accumulate assistant text from message.completed (final) or message.appended (delta)
+            if (parsed.type === "message.completed" && parsed.data?.finishReason !== "tool-calls") {
+              // Final message — use the full text
+              if (parsed.data?.message) {
+                assistantMessage = parsed.data.message;
+              }
+            }
+            if (parsed.type === "message.appended" && parsed.data?.messageDelta) {
+              // Incremental delta — append to accumulated text
+              assistantMessage += parsed.data.messageDelta;
             }
             if (parsed.type === "turn.failed") {
               turnFailed = true;
