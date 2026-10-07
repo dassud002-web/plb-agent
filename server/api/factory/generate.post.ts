@@ -143,7 +143,7 @@ export default defineEventHandler(async (event) => {
 
   // 60-second timeout so we never hang indefinitely
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 60_000);
+  const timeout = setTimeout(() => controller.abort(), 300_000);
 
   void (async () => {
     try {
@@ -187,25 +187,28 @@ export default defineEventHandler(async (event) => {
 
       const reader = stream.getReader();
       const decoder = new TextDecoder();
+      let eventCount = 0;
+      let lastEventType = "";
 
       for (;;) {
         const { done, value } = await reader.read();
         if (done) break;
 
-        const lines = decoder.decode(value, { stream: true }).split("\n");
+        const text = decoder.decode(value, { stream: true });
+        const lines = text.split("\n");
         for (const line of lines) {
           if (!line.trim()) continue;
+          eventCount++;
           try {
             const parsed = JSON.parse(line);
+            lastEventType = parsed.type ?? "unknown";
             // Accumulate assistant text from message.completed (final) or message.appended (delta)
             if (parsed.type === "message.completed" && parsed.data?.finishReason !== "tool-calls") {
-              // Final message — use the full text
               if (parsed.data?.message) {
                 assistantMessage = parsed.data.message;
               }
             }
             if (parsed.type === "message.appended" && parsed.data?.messageDelta) {
-              // Incremental delta — append to accumulated text
               assistantMessage += parsed.data.messageDelta;
             }
             if (parsed.type === "turn.failed") {
@@ -220,6 +223,11 @@ export default defineEventHandler(async (event) => {
             // ignore parse errors for non-JSON lines
           }
         }
+      }
+
+      // Debug: log if no events or very few events received
+      if (eventCount === 0 || !assistantMessage) {
+        console.log(`[factory] Eve stream: ${eventCount} events, lastType=${lastEventType}, message="${assistantMessage}"`);
       }
 
       if (turnFailed) {
@@ -253,7 +261,7 @@ export default defineEventHandler(async (event) => {
       try {
         await updateJobStatus(job.id, {
           status: "failed",
-          result: { errorMessage: String(err) },
+          result: { errorMessage: `[factory] Error: ${String(err)} (events: unknown)` },
         });
       } catch {
         // ignore
