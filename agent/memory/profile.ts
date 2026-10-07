@@ -1,5 +1,6 @@
 import { defineMemory } from "eve/memory";
-import { fileMemory, vercelBlob } from "eve/memory/file";
+import { fileMemory } from "eve/memory/file";
+import { vercelBlob } from "eve/memory/file/vercel";
 import { byPrincipal } from "eve/memory/scope";
 
 export default defineMemory({
