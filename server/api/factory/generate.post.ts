@@ -136,8 +136,10 @@ export default defineEventHandler(async (event) => {
 
   // Fire-and-forget: invoke Eve agent with the skill prompt.
   // Eve runs the skill and streams events back.
-  // Auth is handled by vercelOidc() for internal Vercel calls.
+  // Auth: we use the Better Auth session via the request cookie.
+  // The cookie is forwarded from the browser (credentials: 'include').
   const origin = appOrigin();
+  const cookieHeader = getHeader(event, "cookie") ?? "";
 
   // 5-minute timeout so we never hang indefinitely
   const controller = new AbortController();
@@ -146,10 +148,12 @@ export default defineEventHandler(async (event) => {
   void (async () => {
     try {
       // Step 1: Create a session with Eve — POST returns {sessionId} immediately
-      // Note: no cookie forwarding — vercelOidc() handles internal Vercel auth
       const sessionRes = await fetch(`${origin}/eve/v1/session`, {
         method: "POST",
-        headers: { "content-type": "application/json" },
+        headers: {
+          cookie: cookieHeader,
+          "content-type": "application/json",
+        },
         body: JSON.stringify({
           message: `${skillInfo.systemPrompt}\n\n---\nContent to analyze:\n${body.input}`,
         }),
@@ -180,6 +184,7 @@ export default defineEventHandler(async (event) => {
 
       // Step 2: Stream events from the session's dedicated stream endpoint
       const streamRes = await fetch(`${origin}/eve/v1/session/${sessionId}/stream`, {
+        headers: { cookie: cookieHeader },
         signal: controller.signal,
       });
 
