@@ -141,13 +141,13 @@ export default defineEventHandler(async (event) => {
   const origin = appOrigin();
   const sessionCookie = getHeader(event, "cookie") ?? "";
 
-  // 60-second timeout so we never hang indefinitely
+  // 5-minute timeout so we never hang indefinitely
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 300_000);
 
   void (async () => {
     try {
-      // Start a session with Eve
+      // Step 1: Create a session with Eve — POST returns {sessionId} immediately
       const sessionRes = await fetch(`${origin}/eve/v1/session`, {
         method: "POST",
         headers: {
@@ -160,19 +160,44 @@ export default defineEventHandler(async (event) => {
         signal: controller.signal,
       });
 
-      clearTimeout(timeout);
-
       if (!sessionRes.ok) {
+        clearTimeout(timeout);
         await updateJobStatus(job.id, {
           status: "failed",
-          result: { errorMessage: `Eve agent returned ${sessionRes.status}: ${sessionRes.statusText}` },
+          result: { errorMessage: `Eve session returned ${sessionRes.status}: ${sessionRes.statusText}` },
         });
         return;
       }
 
-      // Read the NDJSON event stream from Eve
-      // Events we care about: message.completed, message.appended, turn.failed, session.failed
-      const stream = sessionRes.body;
+      let sessionId: string;
+      try {
+        const sessionData = await sessionRes.json() as { sessionId: string };
+        sessionId = sessionData.sessionId;
+      } catch {
+        clearTimeout(timeout);
+        await updateJobStatus(job.id, {
+          status: "failed",
+          result: { errorMessage: "Eve returned invalid session JSON" },
+        });
+        return;
+      }
+
+      // Step 2: Stream events from the session's dedicated stream endpoint
+      const streamRes = await fetch(`${origin}/eve/v1/session/${sessionId}/stream`, {
+        signal: controller.signal,
+      });
+
+      clearTimeout(timeout);
+
+      if (!streamRes.ok) {
+        await updateJobStatus(job.id, {
+          status: "failed",
+          result: { errorMessage: `Eve stream returned ${streamRes.status}: ${streamRes.statusText}` },
+        });
+        return;
+      }
+
+      const stream = streamRes.body;
       if (!stream) {
         await updateJobStatus(job.id, {
           status: "failed",
@@ -187,8 +212,6 @@ export default defineEventHandler(async (event) => {
 
       const reader = stream.getReader();
       const decoder = new TextDecoder();
-      let eventCount = 0;
-      let lastEventType = "";
 
       for (;;) {
         const { done, value } = await reader.read();
@@ -198,10 +221,8 @@ export default defineEventHandler(async (event) => {
         const lines = text.split("\n");
         for (const line of lines) {
           if (!line.trim()) continue;
-          eventCount++;
           try {
             const parsed = JSON.parse(line);
-            lastEventType = parsed.type ?? "unknown";
             // Accumulate assistant text from message.completed (final) or message.appended (delta)
             if (parsed.type === "message.completed" && parsed.data?.finishReason !== "tool-calls") {
               if (parsed.data?.message) {
@@ -223,11 +244,6 @@ export default defineEventHandler(async (event) => {
             // ignore parse errors for non-JSON lines
           }
         }
-      }
-
-      // Debug: log if no events or very few events received
-      if (eventCount === 0 || !assistantMessage) {
-        console.log(`[factory] Eve stream: ${eventCount} events, lastType=${lastEventType}, message="${assistantMessage}"`);
       }
 
       if (turnFailed) {
@@ -261,7 +277,7 @@ export default defineEventHandler(async (event) => {
       try {
         await updateJobStatus(job.id, {
           status: "failed",
-          result: { errorMessage: `[factory] Error: ${String(err)} (events: unknown)` },
+          result: { errorMessage: String(err) },
         });
       } catch {
         // ignore
