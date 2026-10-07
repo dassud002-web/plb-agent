@@ -35,6 +35,7 @@
     "auth:schema": "npx auth@latest generate --config server/utils/auth.ts --output server/db/schema/auth.ts -y && eslint server/db/schema/auth.ts --fix"
   },
   "dependencies": {
+    "@ai-sdk/google": "^4.0.88",
     "@ai-sdk/mcp": "^2.0.41",
     "@comark/nuxt": "^0.6.2",
     "@github-tools/eve-extension": "^0.7.0",

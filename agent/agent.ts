@@ -1,12 +1,12 @@
 import { defineAgent, defineDynamic } from "eve";
-import { minimax } from "vercel-minimax-ai-provider";
+import { google } from "@ai-sdk/google";
 
 export default defineAgent({
   model: defineDynamic({
     events: {
       "step.started": () => ({
-        model: minimax("MiniMax-M2.7"),
-        modelContextWindowTokens: 204_800,
+        model: google("gemini-2.0-flash"),
+        modelContextWindowTokens: 1_000_000,
       }),
     },
   }),

@@ -8,6 +8,9 @@ importers:
 
   .:
     dependencies:
+      '@ai-sdk/google':
+        specifier: ^4.0.88
+        version: 4.0.88(zod@4.5.4)
       '@ai-sdk/mcp':
         specifier: ^2.0.41
         version: 2.0.41(zod@4.5.4)
@@ -114,6 +117,12 @@ packages:
     peerDependencies:
       zod: ^3.25.76 || ^4.1.8
 
+  '@ai-sdk/google@4.0.88':
+    resolution: {integrity: sha512-5wfpAcnXrR2o1kUZURXhl6ErOGDmdayCi+GsfsB3vJHeITpm1t9aVqrw9/wUhpUmZTvvC5/+vDRtdo5QU9XYJA==}
+    engines: {node: '>=22'}
+    peerDependencies:
+      zod: ^3.25.76 || ^4.1.8
+
   '@ai-sdk/mcp@2.0.41':
     resolution: {integrity: sha512-1u3HJYmgehXl1cz7ipi3NO8HrT6SdozZ7DNEh9MXdQE7knAnq70yhD8DIqfRdk/iZ3Net7QRmECUC+R5ISG0SQ==}
     engines: {node: '>=22'}
@@ -138,6 +147,12 @@ packages:
     peerDependencies:
       zod: ^3.25.76 || ^4.1.8
 
+  '@ai-sdk/provider-utils@5.0.54':
+    resolution: {integrity: sha512-amqDxFnw9+dpVrDACRDGmExUUNOH9C1D2bhg/DqWJnamEOieDTXBBXLHujSby/0MqHdAFksnpE8Pzfqx6ABMBw==}
+    engines: {node: '>=22'}
+    peerDependencies:
+      zod: ^3.25.76 || ^4.1.8
+
   '@ai-sdk/provider@3.0.1':
     resolution: {integrity: sha512-2lR4w7mr9XrydzxBSjir4N6YMGdXD+Np1Sh0RXABh7tWdNFFwIeRI1Q+SaYZMbfL8Pg8RRLcrxQm51yxTLhokg==}
     engines: {node: '>=18'}
@@ -145,6 +160,10 @@ packages:
   '@ai-sdk/provider@3.0.2':
     resolution: {integrity: sha512-HrEmNt/BH/hkQ7zpi2o6N3k1ZR1QTb7z85WYhYygiTxOQuaml4CMtHCWRbric5WPU+RNsYI7r1EpyVQMKO1pYw==}
     engines: {node: '>=18'}
+
+  '@ai-sdk/provider@4.0.22':
+    resolution: {integrity: sha512-1Jtmn36VNMOBo9CMUQrPqsR744qtqRloEiXpWCYS8ffPlhS2CrSNmoho5lPjp3R7EnkzBsGI6p51TA7fQJQZdA==}
+    engines: {node: '>=22'}
 
   '@ai-sdk/provider@4.0.9':
     resolution: {integrity: sha512-XnGXPWiBIfqjsVEud5pOaVneRByJQOu2sYNwlSVJTPCvakdCDkVuYKKfNuStkIpMUYl7JIkBZGBx+B5YfNeVjA==}
@@ -7317,6 +7336,12 @@ snapshots:
       '@vercel/oidc': 3.2.0
       zod: 4.5.4
 
+  '@ai-sdk/google@4.0.88(zod@4.5.4)':
+    dependencies:
+      '@ai-sdk/provider': 4.0.22
+      '@ai-sdk/provider-utils': 5.0.54(zod@4.5.4)
+      zod: 4.5.4
+
   '@ai-sdk/mcp@2.0.41(zod@4.5.4)':
     dependencies:
       '@ai-sdk/provider': 4.0.9
@@ -7348,11 +7373,24 @@ snapshots:
       undici: 7.29.0
       zod: 4.5.4
 
+  '@ai-sdk/provider-utils@5.0.54(zod@4.5.4)':
+    dependencies:
+      '@ai-sdk/provider': 4.0.22
+      '@standard-schema/spec': 1.1.0
+      '@workflow/serde': 4.1.0
+      eventsource-parser: 3.1.0
+      undici: 7.29.0
+      zod: 4.5.4
+
   '@ai-sdk/provider@3.0.1':
     dependencies:
       json-schema: 0.4.0
 
   '@ai-sdk/provider@3.0.2':
+    dependencies:
+      json-schema: 0.4.0
+
+  '@ai-sdk/provider@4.0.22':
     dependencies:
       json-schema: 0.4.0
 
